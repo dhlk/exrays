@@ -18,6 +18,30 @@ var Transforms = map[string]Transform{
 		}
 		return color.Gray{0}
 	},
+	"g": func(rgba color.Color) color.Color {
+		_, b, _, _ := rgba.RGBA()
+		b = b & 1
+		if b == 1 {
+			return color.Gray{255}
+		}
+		return color.Gray{0}
+	},
+	"b": func(rgba color.Color) color.Color {
+		_, _, b, _ := rgba.RGBA()
+		b = b & 1
+		if b == 1 {
+			return color.Gray{255}
+		}
+		return color.Gray{0}
+	},
+	"a": func(rgba color.Color) color.Color {
+		_, _, _, b := rgba.RGBA()
+		b = b & 1
+		if b == 1 {
+			return color.Gray{255}
+		}
+		return color.Gray{0}
+	},
 }
 
 func Decode(r io.Reader, w io.Writer, t Transform) error {
