@@ -7,9 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	//"path"
-	//"strings"
-	"sync"
+	"sort"
 	"time"
 
 	"github.com/dhlk/exrays"
@@ -27,29 +25,38 @@ func flagInit() []string {
 	return flag.Args()
 }
 
-func feeder(app string, imgs chan<- exrays.AppImg, wait sync.WaitGroup, cutoff time.Time) {
-	defer wait.Done()
-	results := exrays.PullApp(app)
+type AppImgSort []exrays.AppImg
 
-	for _, result := range results {
-		if result.Time.Before(cutoff) {
-			continue
-		}
-
-		//if strings.ToLower(path.Ext(result.Image)) != ".png" {
-		//	continue
-		//}
-
-		imgs <- result
-	}
+func (ais AppImgSort) Len() int {
+	return len(ais)
 }
 
-func writer(imgs <-chan exrays.AppImg, w io.Writer, t exrays.Transform) {
-	for img := range imgs {
-		if img.Image == "" {
-			break
-		}
+func (ais AppImgSort) Less(i, j int) bool {
+	return ais[i].Time.After(ais[j].Time)
+}
 
+func (ais AppImgSort) Swap(i, j int) {
+	ais[i], ais[j] = ais[j], ais[i]
+}
+
+func pullApps(cutoff time.Time) []exrays.AppImg {
+	results := make([]exrays.AppImg, 0)
+
+	for _, app := range apps {
+		for _, result := range exrays.PullApp(app) {
+			if result.Time.After(cutoff) {
+				results = append(results, result)
+			}
+		}
+	}
+
+	sort.Sort(AppImgSort(results))
+
+	return results
+}
+
+func writeImgs(imgs []exrays.AppImg, w io.Writer, t exrays.Transform) {
+	for _, img := range imgs {
 		fmt.Fprintf(w, `<img src="data:image/png;base64,`)
 
 		resp, err := http.Get(img.Image)
@@ -62,7 +69,7 @@ func writer(imgs <-chan exrays.AppImg, w io.Writer, t exrays.Transform) {
 		exrays.Decode(resp.Body, b64w, t)
 		b64w.Close()
 
-		fmt.Fprintf(w, `" />`)
+		fmt.Fprintf(w, `" /><br>`)
 	}
 }
 
@@ -86,20 +93,8 @@ func handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	fmt.Fprintf(w, "<html><body>")
-
-	imgs := make(chan exrays.AppImg)
-	go writer(imgs, w, exrays.Transforms[t])
-
-	var wait sync.WaitGroup
-	wait.Add(len(apps))
-	for _, app := range apps {
-		go feeder(app, imgs, wait, cutoff)
-	}
-
-	wait.Wait()
-	close(imgs)
-
-	fmt.Fprintf(w, "</body></html>")
+	writeImgs(pullApps(cutoff), w, exrays.Transforms[t])
+	fmt.Fprintf(w, "<h1>done</h1></body></html>")
 }
 
 func main() {
