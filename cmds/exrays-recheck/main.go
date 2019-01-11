@@ -15,14 +15,12 @@ import (
 
 var (
 	address string
-	apps    []string
 )
 
-func flagInit() []string {
+func flagInit() {
 	flag.StringVar(&address, "a", ":5475", "listen address")
 
 	flag.Parse()
-	return flag.Args()
 }
 
 type AppImgSort []exrays.AppImg
@@ -39,7 +37,7 @@ func (ais AppImgSort) Swap(i, j int) {
 	ais[i], ais[j] = ais[j], ais[i]
 }
 
-func pullApps(cutoff time.Time) []exrays.AppImg {
+func pullApps(cutoff time.Time, apps []string) []exrays.AppImg {
 	results := make([]exrays.AppImg, 0)
 
 	for _, app := range apps {
@@ -93,12 +91,12 @@ func handler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	fmt.Fprintf(w, "<html><body>")
-	writeImgs(pullApps(cutoff), w, exrays.Transforms[t])
+	writeImgs(pullApps(cutoff, req.Form["a"]), w, exrays.Transforms[t])
 	fmt.Fprintf(w, "<h1>done</h1></body></html>")
 }
 
 func main() {
-	apps = flagInit()
+	flagInit()
 	http.HandleFunc("/", handler)
 
 	for {
