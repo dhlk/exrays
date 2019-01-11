@@ -55,6 +55,7 @@ func pullApps(cutoff time.Time, apps []string) []exrays.AppImg {
 
 func writeImgs(imgs []exrays.AppImg, w io.Writer, t exrays.Transform) {
 	for _, img := range imgs {
+		fmt.Fprintf(w, `<a href="`+img.Link+`">`)
 		fmt.Fprintf(w, `<img src="data:image/png;base64,`)
 
 		resp, err := http.Get(img.Image)
@@ -67,7 +68,7 @@ func writeImgs(imgs []exrays.AppImg, w io.Writer, t exrays.Transform) {
 		exrays.Decode(resp.Body, b64w, t)
 		b64w.Close()
 
-		fmt.Fprintf(w, `" /><br>`)
+		fmt.Fprintf(w, `" /></a><br>`)
 	}
 }
 
